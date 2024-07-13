@@ -98,3 +98,4 @@ folium.LayerControl().add_to(m)
 
 # Mostrar el mapa en Streamlit
 st_folium(m, width=700, height=500)
+
