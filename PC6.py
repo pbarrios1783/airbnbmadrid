@@ -11,12 +11,12 @@ st.subheader("Patricia Barrios")
 @st.cache_data
 def load_data():
     # Load apartment data
-    df_pisos = pd.read_csv("data/pisos.csv")
+    df_pisos = pd.read_csv("pisos.csv")
     df_pisos["coord"] = gpd.points_from_xy(x=df_pisos.longitude, y=df_pisos.latitude)
     df_pisos = gpd.GeoDataFrame(df_pisos, geometry="coord").set_crs("EPSG:4326")
     
     # Load Madrid neighborhoods
-    df_nb_madrid = gpd.read_file('data/neighbourhoods.geojson')
+    df_nb_madrid = gpd.read_file('neighbourhoods.geojson')
     
     # Join neighborhood data to apartments
     airbnb_in_madrid = gpd.sjoin(df_pisos, df_nb_madrid, how='inner')
