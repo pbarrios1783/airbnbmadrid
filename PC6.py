@@ -11,7 +11,7 @@ st.subheader("Patricia Barrios")
 @st.cache_data(persist=True)
 def load_data():
     # Cargar los datos de los pisos
-    df_pisos = pd.read_csv("data/pisos.csv")
+    df_pisos = pd.read_csv("pisos.csv")
     df_pisos["coord"] = gpd.points_from_xy(x=df_pisos.longitude, y=df_pisos.latitude)
     df_pisos = gpd.GeoDataFrame(df_pisos, geometry="coord").set_crs("EPSG:4326")
 
