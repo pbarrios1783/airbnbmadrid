@@ -8,7 +8,7 @@ from streamlit_folium import st_folium
 st.title("Airbnb - Madrid")
 st.subheader("Patricia Barrios")
 
-@st.cache_data
+@st.cache_data(persist=True)
 def load_data():
     # Cargar los datos de los pisos
     df_pisos = pd.read_csv("data/pisos.csv")
