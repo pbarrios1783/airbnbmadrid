@@ -16,7 +16,7 @@ def load_data():
     df_pisos = gpd.GeoDataFrame(df_pisos, geometry="coord").set_crs("EPSG:4326")
 
     # Cargar los barrios de Madrid
-    df_nb_madrid = gpd.read_file('data/neighbourhoods.geojson')
+    df_nb_madrid = gpd.read_file('neighbourhoods.geojson')
     
     return df_pisos, df_nb_madrid
 
