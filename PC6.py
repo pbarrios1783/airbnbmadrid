@@ -10,28 +10,38 @@ st.subheader("Patricia Barrios")
 
 @st.cache_data(persist=True)
 def load_data():
-    # Cargar los datos de los pisos
-    df_pisos = pd.read_csv("pisos.csv")
-    df_pisos["coord"] = gpd.points_from_xy(x=df_pisos.longitude, y=df_pisos.latitude)
-    df_pisos = gpd.GeoDataFrame(df_pisos, geometry="coord").set_crs("EPSG:4326")
+    try:
+        # Cargar los datos de los pisos
+        df_pisos = pd.read_csv("pisos.csv")
+        df_pisos["coord"] = gpd.points_from_xy(x=df_pisos.longitude, y=df_pisos.latitude)
+        df_pisos = gpd.GeoDataFrame(df_pisos, geometry="coord").set_crs("EPSG:4326")
 
-    # Cargar los barrios de Madrid
-    df_nb_madrid = gpd.read_file('neighbourhoods.geojson')
-    
-    return df_pisos, df_nb_madrid
+        # Cargar los barrios de Madrid
+        df_nb_madrid = gpd.read_file('neighbourhoods.geojson')
+        return df_pisos, df_nb_madrid
+    except Exception as e:
+        st.error(f"Error al cargar los datos: {e}")
+        return None, None
 
+# Cargar datos
 df_pisos, df_nb_madrid = load_data()
+if df_pisos is None or df_nb_madrid is None:
+    st.stop()
 
 # Unir los datos de los barrios a los pisos
-airbnb_in_madrid = gpd.sjoin(df_pisos, df_nb_madrid, how='inner')
+try:
+    airbnb_in_madrid = gpd.sjoin(df_pisos, df_nb_madrid, how='inner')
+except Exception as e:
+    st.error(f"Error al unir los datos: {e}")
+    st.stop()
 
-# Obtener las listas únicas de tipos de vivienda y barrios
+# Listas únicas para filtros
 room_types = airbnb_in_madrid['room_type'].unique()
 neighbourhoods = airbnb_in_madrid['neighbourhood'].unique()
 
 # Crear filtros en la barra lateral
 selected_room_type = st.sidebar.selectbox("Selecciona Tipo de Habitación", room_types)
-selected_neighbourhoods = st.sidebar.multiselect("Selecciona un Barrio", neighbourhoods)
+selected_neighbourhoods = st.sidebar.multiselect("Selecciona un Barrio", neighbourhoods, default=neighbourhoods)
 
 # Filtrar datos según los filtros seleccionados
 filtered_pisos = airbnb_in_madrid[
@@ -39,7 +49,7 @@ filtered_pisos = airbnb_in_madrid[
     (airbnb_in_madrid['neighbourhood'].isin(selected_neighbourhoods))
 ]
 
-# Función para categorizar precios
+# Categorizar precios
 def categorize_price(price):
     if 0 <= price < 50:
         return "Muy Baratos"
@@ -54,10 +64,9 @@ def categorize_price(price):
     else:
         return "Precio fuera de rango"
 
-# Aplicar la función de categorización de precios
 filtered_pisos['categoria'] = filtered_pisos['price'].apply(categorize_price)
 
-# Crear un mapa centrado en Madrid
+# Crear mapa centrado en Madrid
 madrid_location = [40.4268627127925, -3.6912505241863776]
 m = folium.Map(location=madrid_location, zoom_start=12, width=600, height=600)
 
@@ -68,32 +77,27 @@ folium.GeoJson(
     tooltip=folium.GeoJsonTooltip(fields=['neighbourhood'], labels=False, sticky=True)
 ).add_to(m)
 
-# Crear un FeatureGroup para cada categoría de precio
-feature_groups = {
-    "Muy Baratos": folium.FeatureGroup(name="Muy Baratos"),
-    "Baratos": folium.FeatureGroup(name="Baratos"),
-    "Precio medio": folium.FeatureGroup(name="Precio medio"),
-    "Caros": folium.FeatureGroup(name="Caros"),
-    "Muy Caros": folium.FeatureGroup(name="Muy Caros")
+# Colores para las categorías
+category_colors = {
+    "Muy Baratos": 'blue',
+    "Baratos": 'green',
+    "Precio medio": 'orange',
+    "Caros": 'red',
+    "Muy Caros": 'darkred'
 }
 
-# Agregar marcadores al FeatureGroup correspondiente
-for idx, row in filtered_pisos.iterrows():
-    folium.Marker(
-        location=[row['latitude'], row['longitude']],
-        popup=f"{row['room_type']} - {row['categoria']} - {row['price']}€",
-        icon=folium.Icon(color='blue' if row['categoria'] == "Muy Baratos" else
-                         'green' if row['categoria'] == "Baratos" else
-                         'orange' if row['categoria'] == "Precio medio" else
-                         'red' if row['categoria'] == "Caros" else
-                         'darkred')
-    ).add_to(feature_groups[row['categoria']])
+# Agregar marcadores por categoría
+for categoria, color in category_colors.items():
+    feature_group = folium.FeatureGroup(name=categoria)
+    for idx, row in filtered_pisos[filtered_pisos['categoria'] == categoria].iterrows():
+        folium.Marker(
+            location=[row['latitude'], row['longitude']],
+            popup=f"{row['room_type']} - {categoria} - {row['price']}€",
+            icon=folium.Icon(color=color)
+        ).add_to(feature_group)
+    feature_group.add_to(m)
 
-# Agregar cada FeatureGroup al mapa
-for fg in feature_groups.values():
-    fg.add_to(m)
-
-# Agregar control de capas para alternar entre capas
+# Agregar control de capas
 folium.LayerControl().add_to(m)
 
 # Mostrar el mapa en Streamlit
